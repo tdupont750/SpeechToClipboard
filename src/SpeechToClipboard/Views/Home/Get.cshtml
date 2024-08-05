@@ -1,0 +1,132 @@
+@page
+
+<html>
+
+<head title="Speech To Clipboard">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+</head>
+
+<body>
+
+<iframe name="ignoreRedirectFrame" style="display:none;"></iframe>
+
+<form id="inputForm">
+    <button id="clearButton" style="width: 30%; height: 20%; float:left;">CLEAR</button>
+    <button id="resendButton" style="width: 30%; height: 20%; float:left;">RESEND</button>
+    <button id="sendButton" style="width: 40%; height: 20%;">SEND</button>
+    <div id="displayDiv" style="width: 100%; height: 25%;">&nbsp;</div>
+    <textarea id="inputText" autofocus style="width: 100%; height: 13%;"></textarea>
+</form>
+
+<form id="submitForm" method="POST" target="ignoreRedirectFrame" style="display:none;">
+    <textarea id="submitText" name="text"></textarea>
+</form>
+
+<script>
+    (function() {
+        let lastFastId = -1;
+        let lastSlowId = -1;
+        let lastSubmitId = -1;
+        let lastLength = 0;
+
+        const inputText = document.getElementById('inputText');
+        const resendButton = document.getElementById('resendButton');
+        const clearButton = document.getElementById('clearButton');
+        const sendButton = document.getElementById('sendButton');
+        const submitText = document.getElementById('submitText');
+        const displayDiv = document.getElementById('displayDiv');
+
+        inputText.addEventListener('input', function() {
+            displayDiv.innerText = inputText.value.substring(lastLength);
+
+            clearIds();
+
+            // These are common words that should submit immediately
+            lastFastId = setTimeout(function() {
+                onInput([
+                    'to submit',
+                    'submit',
+                    ' cement',
+                    'full stop'
+                ]);
+            }, 100);
+
+            // These are common mistranslations, so use a longer delay to try and avoid false positives
+            lastSlowId = setTimeout(function() {
+                onInput([
+                    'send it',
+                    'so that',
+                    "it's a bit",
+                    'summit'
+                ]);
+            }, 1000);
+
+            function onInput(sends) {
+                const trim = inputText.value.substring(lastLength).trim();
+                for (let i = 0; i < sends.length; i++) {
+                    if (trim.toLowerCase().endsWith(sends[i])) {
+                        submitForm(trim.substring(0, trim.length - sends[i].length).trim());
+                        return;
+                    }
+                }
+            }
+        });
+
+        resendButton.addEventListener('click', function(event) {
+            submitForm(localStorage.getItem('lastText'));
+            event.preventDefault();
+        });
+
+        clearButton.addEventListener('click', function(event) {
+            clearText();
+            event.preventDefault();
+        });
+
+        sendButton.addEventListener('click', function(event) {
+            submitForm(inputText.value.substring(lastLength).trim());
+            clearText();
+            event.preventDefault();
+        });
+
+        function submitForm(text) {
+            console.log(text);
+            localStorage.setItem('lastText', text);
+
+            lastLength = inputText.value.length;
+            displayDiv.innerText = '';
+            
+            submitText.value = text;
+            submitText.parentNode.submit();
+            
+            clearIds();
+
+            // PROBLEM: gboard might fire a keyup event after the form submit which will reset the lastSubmitId
+            // HACK: Just delay 500 ms to try and ensure that the lastSubmitId stays set
+            // NOTE: Continuing to type while preserve text, so worst case is just that text does not get cleared
+            //       automatically
+            setTimeout(function() {
+                // Use 10 seconds because that is the default gboard timeout
+                lastSubmitId = setTimeout(function() {
+                    clearText();
+                }, 9500);
+            }, 500);
+        }
+
+        function clearText() {
+            lastLength = 0;
+            inputText.value = '';
+            displayDiv.innerText = '';
+            clearIds();
+        }
+
+        function clearIds() {
+            clearTimeout(lastFastId);
+            clearTimeout(lastSlowId);
+            clearTimeout(lastSubmitId);
+        }
+    })();
+</script>
+
+</body>
+
+</html>
