@@ -17,10 +17,12 @@ public class HomeController : Controller
     }
 
     [HttpPost]
-    public IActionResult Post([FromForm] string text)
+    public IActionResult Post([FromForm] string text, [FromForm] bool lower)
     {
         if (string.IsNullOrWhiteSpace(text))
             return Ok();
+
+        if (lower) text = text.ToLower();
 
         var replacedText = _findReplaceService.Replace(text);
         

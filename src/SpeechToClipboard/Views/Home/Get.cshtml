@@ -11,14 +11,20 @@
 <iframe name="ignoreRedirectFrame" style="display:none;"></iframe>
 
 <form id="inputForm">
-    <button id="clearButton" style="width: 30%; height: 20%; float:left;">CLEAR</button>
-    <button id="resendButton" style="width: 30%; height: 20%; float:left;">RESEND</button>
-    <button id="sendButton" style="width: 40%; height: 20%;">SEND</button>
-    <div id="displayDiv" style="width: 100%; height: 25%;">&nbsp;</div>
+    <label style="width: 100%; display:inline-block; text-align:center; padding-bottom:5px;">
+        <input id="inputLower" type="checkbox"></input>
+        <span>To Lower</span>
+    </label>
+    <br>
+    <button id="clearButton" style="width: 35%; height: 16%; float:left;">CLEAR</button>
+    <button id="resendButton" style="width: 30%; height: 16%; float:left;">RESEND</button>
+    <button id="sendButton" style="width: 35%; height: 16%;">SEND</button>
+    <div id="displayDiv" style="width: 100%; height: 23%;">&nbsp;</div>
     <textarea id="inputText" autofocus style="width: 100%; height: 13%;"></textarea>
 </form>
 
 <form id="submitForm" method="POST" target="ignoreRedirectFrame" style="display:none;">
+    <input id="submitLower" name="lower" type="checkbox" value="true"></input>
     <textarea id="submitText" name="text"></textarea>
 </form>
 
@@ -27,13 +33,16 @@
         let lastFastId = -1;
         let lastSlowId = -1;
         let lastSubmitId = -1;
+        let hackSubmitId = -1;
         let lastLength = 0;
 
+        const inputLower = document.getElementById('inputLower');
         const inputText = document.getElementById('inputText');
         const resendButton = document.getElementById('resendButton');
         const clearButton = document.getElementById('clearButton');
         const sendButton = document.getElementById('sendButton');
         const submitText = document.getElementById('submitText');
+        const submitLower = document.getElementById('submitLower');
         const displayDiv = document.getElementById('displayDiv');
 
         inputText.addEventListener('input', function() {
@@ -89,6 +98,8 @@
         });
 
         function submitForm(text) {
+            submitLower.checked = inputLower.checked;
+
             console.log(text);
             localStorage.setItem('lastText', text);
 
@@ -98,28 +109,29 @@
             submitText.value = text;
             submitText.parentNode.submit();
             
-            clearIds();
+            clearIds(true);
 
             // PROBLEM: gboard might fire a keyup event after the form submit which will reset the lastSubmitId
-            // HACK: Just delay 500 ms to try and ensure that the lastSubmitId stays set
+            // HACK: Just delay 1000 ms to try and ensure that the lastSubmitId stays set
             // NOTE: Continuing to type while preserve text, so worst case is just that text does not get cleared
             //       automatically
-            setTimeout(function() {
+            hackSubmitId = setTimeout(function() {
                 // Use 10 seconds because that is the default gboard timeout
                 lastSubmitId = setTimeout(function() {
                     clearText();
-                }, 9500);
-            }, 500);
+                }, 9000);
+            }, 1000);
         }
 
         function clearText() {
             lastLength = 0;
             inputText.value = '';
             displayDiv.innerText = '';
-            clearIds();
+            clearIds(true);
         }
 
-        function clearIds() {
+        function clearIds(clearHack) {
+            if (clearHack === true) clearTimeout(hackSubmitId);
             clearTimeout(lastFastId);
             clearTimeout(lastSlowId);
             clearTimeout(lastSubmitId);
